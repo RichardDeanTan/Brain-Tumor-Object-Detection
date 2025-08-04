@@ -1,3 +1,5 @@
+# --- START OF FILE app.py ---
+
 import streamlit as st
 import cv2
 import numpy as np
@@ -61,7 +63,7 @@ def create_square_thumbnail(img, size=200, background_color=(0, 0, 0)):
 
 def process_image(image, conf_threshold):
     if model is None:
-        return None, None
+        return None, None, False
     
     results = model(image, conf=conf_threshold)
     
@@ -165,7 +167,7 @@ def get_class_statistics(detections):
         class_confidences[class_name].append(confidence)
     
     stats_data = []
-    for class_name in class_counts:
+    for class_name in sorted(class_counts.keys()):
         stats_data.append({
             'Tumor Type': class_name,
             'Count': class_counts[class_name],
@@ -193,11 +195,11 @@ def export_results_csv(detections, filename="detection_results.csv"):
         })
     
     df = pd.DataFrame(export_data)
-    return df.to_csv(index=False)
+    return df.to_csv(index=False).encode('utf-8')
 
 # --- Sidebar ---
 with st.sidebar:
-    st.title("🧠 Brain Tumor Classifier")
+    st.title("🧠 Brain Tumor Detection")
 
     st.markdown(
         """
@@ -231,17 +233,17 @@ with st.sidebar:
 
     st.subheader("🎯 Class Descriptions")
     st.info("""
-    - **Glioma**: Tumor ganas di jaringan otak.
-    - **Meningioma**: Tumor jinak di selaput otak.
-    - **Pituitary**: Tumor di kelenjar pituitari/hipofisis.
-    - **No Tumor**: Tidak ada tumor.
+    - **Glioma**: Malignant tumor in brain tissue.
+    - **Meningioma**: Benign tumor in brain membranes.
+    - **Pituitary**: Tumor in the pituitary gland.
+    - **No Tumor**: Absence of a detectable tumor.
     """)
 
 # === Main Content ===
 st.markdown('<h1 class="main-header">🧠 Brain Tumor MRI Object Detection</h1>', unsafe_allow_html=True)
 st.markdown("Upload an MRI image or video to detect and classify brain tumors using YOLOv8")
 
-tab1, tab2, tab3 = st.tabs(["📷 Image Analysis", "🎥 Video Analysis", "📹 Real-time Analysis"])
+tab1, tab2, tab3 = st.tabs(["📷 Image Analysis", "🎥 Video Analysis", "📹 Webcam Analysis"])
 
 # === Tab 1: Image Analysis ===
 with tab1:
@@ -264,12 +266,9 @@ with tab1:
             with cols[i]:
                 if os.path.exists(path):
                     sample_image = Image.open(path)
-                    
-                    # Create square thumbnail
                     display_thumbnail = create_square_thumbnail(sample_image)
                     st.image(display_thumbnail, caption=name, use_container_width=True)
                     if st.button(f"Use {name}", key=f"use_{name}", use_container_width=True):
-                        # Set the original (full-sized) image for processing
                         st.session_state.image_to_process = sample_image
                         st.session_state.image_file_name = os.path.basename(path)
                         st.rerun()
@@ -291,7 +290,7 @@ with tab1:
 
     # --- Processing and Display Logic ---
     if st.session_state.image_to_process is not None:
-        if st.button("❌ Clear Selection", use_container_width=True):
+        if st.button("❌ Clear Selection", use_container_width=True, key="clear_image"):
             st.session_state.image_to_process = None
             st.session_state.image_file_name = None
             st.rerun()
@@ -314,12 +313,12 @@ with tab1:
                     
                     st.subheader("📊 Detection Statistics")
                     stats_df = get_class_statistics(detections)
-                    st.dataframe(stats_df)
+                    st.dataframe(stats_df, use_container_width=True)
                     
                     st.subheader("💾 Download Results")
                     annotated_pil = Image.fromarray(annotated_image_rgb)
                     img_buffer = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
-                    annotated_pil.save(img_buffer.name)
+                    annotated_pil.save(img_buffer.name, format="JPEG")
                     with open(img_buffer.name, 'rb') as file:
                         st.download_button(
                             label="📥 Download Annotated Image", data=file.read(),
@@ -338,6 +337,7 @@ with tab1:
 with tab2:
     st.subheader("Choose a Video")
 
+    # --- Session State Initialization ---
     if 'video_to_process' not in st.session_state:
         st.session_state.video_to_process = None
         st.session_state.video_file_name = None
@@ -362,6 +362,10 @@ with tab2:
     )
 
     if uploaded_video is not None:
+        # Clean up previous temporary file if it exists
+        if st.session_state.is_temp_video and st.session_state.video_to_process and os.path.exists(st.session_state.video_to_process):
+            os.unlink(st.session_state.video_to_process)
+        
         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
             tmp_file.write(uploaded_video.getvalue())
             st.session_state.video_to_process = tmp_file.name
@@ -385,91 +389,82 @@ with tab2:
             video_bytes = video_file.read()
         st.video(video_bytes)
 
-        cap = cv2.VideoCapture(video_path)
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-        duration = frame_count / fps if fps > 0 else 0
-        cap.release()
-
-        if duration > 30:
-            st.error("❌ Video is too long! Please upload a video shorter than 30 seconds.")
-        else:
-            st.success(f"Video ready for processing (Duration: {duration:.1f}s)")
-            if st.button("🎬 Process Video", key="process_video", use_container_width=True):
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                status_text.text("Processing video frames...")
-                
-                with st.spinner("Analyzing..."):
-                    output_path, all_detections = process_video(video_path, conf_threshold, progress_bar)
-                    
-                    if output_path and os.path.exists(output_path):
-                        status_text.success("✅ Video processing complete!")
-                        
-                        with open(output_path, 'rb') as video_file:
-                            processed_video_bytes = video_file.read()
-                        
-                        if all_detections:
-                            st.subheader("📊 Video Detection Statistics")
-                            st.dataframe(get_class_statistics(all_detections))
-                        else:
-                            st.info("⚠️ **No tumors detected** in the video")
-                        
-                        st.subheader("💾 Download Results")
-                        st.download_button(
-                            label="📥 Download Processed Video", data=processed_video_bytes,
-                            file_name=f"processed_{st.session_state.video_file_name}", mime="video/mp4")
-                        
-                        if all_detections:
-                            csv_data = export_results_csv(all_detections)
-                            if csv_data:
-                                st.download_button(
-                                    label="📥 Download Detection Data (CSV)", data=csv_data,
-                                    file_name=f"results_{os.path.splitext(st.session_state.video_file_name)[0]}.csv", mime="text/csv")
-                        os.unlink(output_path)
-        
-        # Clean up temp file from upload after processing
-        if st.session_state.is_temp_video and os.path.exists(video_path):
-            pass
-
-
-# === Tab 3: Real-time Analysis ===
-with tab3:
-    st.subheader("Real-time Webcam Analysis")
-    st.info("📹 Use your webcam to analyze MRI images in real-time")
-    
-    if st.button("📹 Start Webcam", key="start_webcam"):
-        frame_placeholder = st.empty()
-        detection_placeholder = st.empty()
-        cap = cv2.VideoCapture(0)
-        
-        if not cap.isOpened():
-            st.error("❌ Cannot access webcam. Please check your camera permissions.")
-        else:
-            stop_button = st.button("⏹️ Stop Webcam", key="stop_webcam")
-            while not stop_button:
-                ret, frame = cap.read()
-                if not ret:
-                    st.error("❌ Failed to capture frame from webcam")
-                    break
-                
-                annotated_frame, detections, has_detections = process_image(frame, conf_threshold)
-                
-                if annotated_frame is not None:
-                    display_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-                    frame_placeholder.image(display_frame, channels="RGB", use_container_width=True)
-                    
-                    if has_detections:
-                        detection_info = [f"**{d['class']}**: {d['confidence']:.2f}" for d in detections]
-                        detection_placeholder.markdown("🎯 **Detections**: " + " | ".join(detection_info))
-                    else:
-                        detection_placeholder.info("⚠️ **No tumor detected**")
-                
-                time.sleep(0.1)
-                
-                if st.session_state.get('stop_webcam'):
-                    break
+        # Video properties check
+        try:
+            cap = cv2.VideoCapture(video_path)
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+            duration = frame_count / fps if fps > 0 else 0
             cap.release()
+
+            if duration > 60: # Increased limit to 60s
+                st.error("❌ Video is too long! Please upload a video shorter than 60 seconds.")
+            else:
+                st.success(f"Video ready for processing (Duration: {duration:.1f}s)")
+                if st.button("🎬 Process Video", key="process_video", use_container_width=True):
+                    progress_bar = st.progress(0, "Processing video frames...")
+                    
+                    with st.spinner("Analyzing..."):
+                        output_path, all_detections = process_video(video_path, conf_threshold, progress_bar)
+                        progress_bar.empty()
+                        
+                        if output_path and os.path.exists(output_path):
+                            st.success("✅ Video processing complete!")
+                            
+                            with open(output_path, 'rb') as video_file:
+                                processed_video_bytes = video_file.read()
+                            
+                            if all_detections:
+                                st.subheader("📊 Video Detection Statistics")
+                                st.dataframe(get_class_statistics(all_detections), use_container_width=True)
+                            else:
+                                st.info("⚠️ **No tumors detected** in the video")
+                            
+                            st.subheader("💾 Download Results")
+                            st.download_button(
+                                label="📥 Download Processed Video", data=processed_video_bytes,
+                                file_name=f"processed_{st.session_state.video_file_name}", mime="video/mp4")
+                            
+                            if all_detections:
+                                csv_data = export_results_csv(all_detections)
+                                if csv_data:
+                                    st.download_button(
+                                        label="📥 Download Detection Data (CSV)", data=csv_data,
+                                        file_name=f"results_{os.path.splitext(st.session_state.video_file_name)[0]}.csv", mime="text/csv")
+                            os.unlink(output_path) # Clean up processed video
+                        else:
+                            st.error("An error occurred during video processing.")
+        except Exception as e:
+            st.error(f"Could not process video. It might be corrupted. Error: {e}")
+
+# === Tab 3: Webcam Analysis ===
+with tab3:
+    st.subheader("Webcam Analysis")
+    st.info("💡 Use your webcam to capture an image and analyze it instantly. This feature works best on a local machine.")
+
+    img_file_buffer = st.camera_input("Take a picture of an MRI scan")
+
+    if img_file_buffer is not None:
+        # To read image file buffer as a PIL Image:
+        image = Image.open(img_file_buffer)
+        
+        # Convert to OpenCV format (BGR)
+        image_np = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        
+        with st.spinner("Processing image..."):
+            annotated_image, detections, has_detections = process_image(image_np, conf_threshold)
+            
+            st.subheader("Detection Results")
+            if has_detections:
+                annotated_image_rgb = cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB)
+                st.image(annotated_image_rgb, caption="Annotated Image", use_container_width=True)
+                
+                st.subheader("📊 Detection Statistics")
+                stats_df = get_class_statistics(detections)
+                st.dataframe(stats_df, use_container_width=True)
+            else:
+                st.image(image, caption="Original Image", use_container_width=True)
+                st.info("⚠️ **No tumor detected**.")
 
 # === Footer ===
 st.markdown("---")
