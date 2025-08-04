@@ -36,27 +36,27 @@ Klik link berikut untuk langsung membuka aplikasi web:
 #### 👉 [Streamlit - Brain Tumor Object Detection](https://brain-tumor-object-detection-richardtanjaya.streamlit.app/)
 
 ## 💡 Fitur
-- ✅ **Object Detection** — Mendeteksi dan mengklasifikasikan tumor: Glioma, Meningioma, Pituitary, atau No Tumor.
-- ✅ **YOLOv8 Backbone** — Menggunakan model YOLOv8 yang kuat untuk deteksi tumor otak dengan recall tinggi.
-- ✅ **Image Input** — Pengguna dapat mengunggah gambar MRI atau memilih contoh gambar yang tersedia.
-- ✅ **Video Input** — Mendukung analisis video MRI dengan durasi sampai dengan 30 detik.
-- ✅ **Real-time Webcam** — Aplikasi dapat melakukan deteksi secara langsung menggunakan kamera pengguna.
-- ✅ **Downloadable Output** — Hasil deteksi dapat diunduh dalam bentuk gambar beranotasi (.jpg) dan file CSV.
-- ✅ **Detection Statistics** — Menampilkan jumlah deteksi per kelas beserta tingkat confidencenya.
+- ✅ **Object Detection |** Mendeteksi dan mengklasifikasikan tumor: Glioma, Meningioma, Pituitary, atau No Tumor.
+- ✅ **YOLOv8 Backbone |** Menggunakan model YOLOv8 yang kuat untuk deteksi tumor otak dengan recall tinggi.
+- ✅ **Image Input |** Pengguna dapat mengunggah gambar MRI atau memilih contoh gambar yang tersedia.
+- ✅ **Video Input |** Mendukung analisis video MRI dengan durasi sampai dengan 30 detik.
+- ✅ **Real-time Webcam |** Aplikasi dapat melakukan deteksi secara langsung menggunakan kamera pengguna.
+- ✅ **Downloadable Output |** Hasil deteksi dapat diunduh dalam bentuk gambar beranotasi (.jpg) dan file CSV.
+- ✅ **Detection Statistics |** Menampilkan jumlah deteksi per kelas beserta tingkat confidencenya.
 
 ## ⚙️ Tech Stack
-- **Model Architecture**: YOLOv8 (Ultralytics)
-- **Web Framework**: Streamlit
-- **Image & Video Processing**: OpenCV, Pillow (PIL)
-- **Data Handling & Analysis**: NumPy, Pandas
-- **Deployment Platform**: Streamlit Cloud
-- **Model Format**: PyTorch `.pt` (best.pt)
+- **Model Architecture** ~ YOLOv8 (Ultralytics)
+- **Web Framework** ~ Streamlit
+- **Image & Video Processing** ~ OpenCV, Pillow (PIL)
+- **Data Handling & Analysis** ~ NumPy, Pandas
+- **Deployment Platform** ~ Streamlit Cloud
+- **Model Format** ~ PyTorch `.pt` (best.pt)
 
 ## 🧠 Model Details
-- **Model**: YOLOv8 — custom trained on brain tumor MRI dataset with bounding boxes.
-- **mAP@0.5 (Mean Average Precision)**: 95.8%
-- **mAP@0.5:0.95**: 79.2%
-- **Recall**: 91.9%
+- **Model** ~ YOLOv8 (custom trained on brain tumor MRI dataset with bounding boxes).
+- **mAP@0.5** ~ 95.8%
+- **mAP@0.5-0.95** ~ 79.2%
+- **Recall** ~ 91.9%
 - **Dataset:** [Brain Tumor MRI Dataset](https://www.kaggle.com/datasets/ahmedsorour1/mri-for-brain-tumor-with-bounding-boxes)
 
 ## ⭐ Deployment
