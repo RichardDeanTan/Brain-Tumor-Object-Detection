@@ -440,15 +440,14 @@ with tab2:
 # === Tab 3: Webcam Analysis ===
 with tab3:
     st.subheader("Webcam Analysis")
-    st.info("💡 Use your webcam to capture an image and analyze it instantly. This feature works best on a local machine.")
+    st.info("💡 Use your webcam to capture an image and analyze it.")
 
     img_file_buffer = st.camera_input("Take a picture of an MRI scan")
 
     if img_file_buffer is not None:
-        # To read image file buffer as a PIL Image:
+        # Read image file buffer as PIL Image
         image = Image.open(img_file_buffer)
         
-        # Convert to OpenCV format (BGR)
         image_np = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         
         with st.spinner("Processing image..."):
